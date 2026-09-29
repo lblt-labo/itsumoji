@@ -302,24 +302,31 @@ out.push({s:x.s,time:x});p=x.i+x.s.length;
 if(p<t.length)split(t.slice(p)).forEach(s=>out.push({s:s}));
 return out;
 }
-function renderEntry(e){
-if(!feed)return;
-const h=$('hint');if(h)h.remove();
-const d=document.createElement('div');d.className='entry';
-const st=document.createElement('div');st.className='stamp';st.textContent=hm(e.t);
-const c=document.createElement('div');c.className='chips';
-tokenize(e.x).forEach(k=>{
+let lastC=null;
+function fillChips(c,text){
+c.textContent='';
+tokenize(text).forEach(k=>{
 const b=document.createElement('button');b.type='button';b.className='chip'+(k.time?' time':'');
 b.textContent=(k.time?'🕐 ':'')+k.s;b.setAttribute('aria-pressed','false');
 b.addEventListener('click',()=>{const s=b.classList.toggle('sel');b.setAttribute('aria-pressed',String(s));if(k.time)showClock(k.time)});
 c.appendChild(b);
 });
+}
+function renderEntry(e){
+if(!feed)return null;
+const h=$('hint');if(h)h.remove();
+const d=document.createElement('div');d.className='entry';
+const st=document.createElement('div');st.className='stamp';st.textContent=hm(e.t);
+const c=document.createElement('div');c.className='chips';
+fillChips(c,e.x);
 d.appendChild(st);d.appendChild(c);
 if(interimEl&&interimEl.parentNode===feed)feed.insertBefore(d,interimEl);else feed.appendChild(d);
 scrollEnd();
+return d;
 }
 function setInterim(t){
 if(!feed)return;
+if(t&&lastC&&Date.now()-lastC.at<3000&&(t===lastC.e.x||(t.length>1&&lastC.e.x.indexOf(t)===0)))t='';
 if(!interimEl){interimEl=document.createElement('div');interimEl.className='interim'}
 if(t){const h=$('hint');if(h)h.remove();interimEl.textContent='…'+t;if(interimEl.parentNode!==feed)feed.appendChild(interimEl)}
 else if(interimEl.parentNode)interimEl.remove();
@@ -327,8 +334,18 @@ scrollEnd();
 }
 function addFinal(text){
 text=(text||'').trim();if(!text)return;
-const e={t:Date.now(),x:text};logs.push(e);
-try{renderEntry(e)}catch(err){console.error(err)}
+const now=Date.now(),L=lastC;
+if(L&&now-L.at<4000){
+if(text===L.e.x||L.e.x.indexOf(text)===0)return;
+if(text.indexOf(L.e.x)===0){
+L.e.x=text;L.at=now;
+try{const c=L.el&&L.el.querySelector('.chips');if(c)fillChips(c,text)}catch(err){console.error(err)}
+saveLogs();scrollEnd();return;
+}
+}
+const e={t:now,x:text};logs.push(e);
+let el=null;try{el=renderEntry(e)}catch(err){console.error(err)}
+lastC={e:e,el:el,at:now};
 saveLogs();
 }
 
@@ -423,10 +440,18 @@ clearTimeout(rt);
 try{
 if(rec){rec.onend=null;rec.onerror=null;rec.onresult=null;try{rec.abort()}catch(e){}}
 rec=new SR();rec.lang='ja-JP';rec.continuous=true;rec.interimResults=true;rec.maxAlternatives=1;
+const sess={done:0};
 rec.onstart=()=>{running=true;status('on')};
 rec.onresult=ev=>{
-fails=0;let it='';
-for(let i=ev.resultIndex;i<ev.results.length;i++){const r=ev.results[i];if(r.isFinal)addFinal(r[0].transcript);else it+=r[0].transcript}
+fails=0;
+const ints=[];
+for(let i=0;i<ev.results.length;i++){
+const r=ev.results[i];if(!r||!r[0])continue;
+if(r.isFinal){if(i>=sess.done){addFinal(r[0].transcript);sess.done=i+1}}
+else if(i>=sess.done)ints.push(r[0].transcript);
+}
+let it='';
+for(let k=0;k<ints.length;k++){if(k+1<ints.length&&ints[k+1].indexOf(ints[k])===0)continue;it+=ints[k]}
 setInterim(it);
 };
 rec.onerror=ev=>{if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){want=false;status('deny');setBtn()}};
@@ -464,7 +489,7 @@ r.appendChild(a);r.appendChild(b);r.appendChild(c);l.appendChild(r);
 function delAll(){
 let ok=true;try{ok=confirm('会話ログをすべて削除します。よろしいですか？')}catch(e){}
 if(!ok)return;
-logs=[];saveLogs();renderLog();
+logs=[];lastC=null;saveLogs();renderLog();
 if(feed)feed.querySelectorAll('.entry').forEach(x=>x.remove());
 msg('delMsg','✅ 削除しました');
 }
