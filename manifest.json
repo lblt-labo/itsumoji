@@ -1,0 +1,16 @@
+{
+  "name": "イツモジ - あなたのそばに、いつもよりそう文字ツール",
+  "short_name": "イツモジ",
+  "description": "卓上型リアルタイム字幕と視覚カードでスムーズな対話を実現するコミュニケーションサポートアプリ",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "lang": "ja",
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>イツモジ - あなたのそばに、いつもよりそう文字ツール</title>
+<meta name="theme-color" content="#000000">
+<meta property="og:type" content="website">
+<meta property="og:title" content="イツモジ - あなたのそばに、いつもよりそう文字ツール">
+<meta property="og:description" content="卓上型リアルタイム字幕と視覚カードでスムーズな対話を実現するコミュニケーションサポートアプリ">
+<meta property="og:image" content="./ogp.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="イツモジ - あなたのそばに、いつもよりそう文字ツール">
+<meta name="twitter:description" content="卓上型リアルタイム字幕と視覚カードでスムーズな対話を実現するコミュニケーションサポートアプリ">
+<meta name="twitter:image" content="./ogp.png">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<style>
+*{box-sizing:border-box}
+:root{--fs:1.6rem;--y:#ffe600}
+html,body{margin:0;background:#000;color:#fff;font-family:"Hiragino Sans","Yu Gothic",Meiryo,system-ui,sans-serif}
+button{font:inherit;color:inherit;cursor:pointer;min-height:44px;min-width:44px;border-radius:12px;border:2px solid #fff;background:#222;padding:0 12px}
+button:active{transform:scale(.95);background:var(--y);color:#000}
+button:focus-visible,input:focus-visible{outline:3px solid var(--y);outline-offset:2px}
+input{font:inherit;font-size:1.2rem;min-height:48px;background:#000;color:#fff;border:2px solid #fff;border-radius:10px;padding:0 10px;width:100%;margin:4px 0}
+.app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+header{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:2px solid #444}
+.ttl{flex:1;min-width:0}
+header h1{font-size:1.4rem;margin:0;line-height:1.2}
+.sub{margin:0;font-size:.8rem;color:#ddd;line-height:1.3}
+header button{font-size:1.3rem;width:48px;height:48px}
+main{flex:1;min-height:0;display:flex}
+#feedPane{flex:1;display:flex;flex-direction:column;min-width:0}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 10px}
+.pill{padding:6px 12px;border:2px solid #fff;border-radius:99px;font-weight:700}
+.pill.on{background:var(--y);color:#000;border-color:var(--y)}
+.pill.warn{border-style:dashed}
+#pauseBadge{margin:0 10px;padding:4px 10px;border:2px solid var(--y);color:var(--y);border-radius:8px;font-size:.9rem}
+#feed{flex:1;overflow-y:auto;padding:8px 10px;-webkit-overflow-scrolling:touch}
+#hint{color:#bbb;font-size:1.1rem;line-height:1.7}
+.entry{margin:0 0 14px}
+.stamp{font-size:.8rem;color:#bbb;margin-bottom:2px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-size:var(--fs);min-height:48px;line-height:1.2;padding:4px 14px;background:#111}
+.chip.time{border:3px solid var(--y);color:var(--y);font-weight:700}
+.chip.sel{background:var(--y);color:#000}
+.chip.sel::before{content:"✓ "}
+.interim{font-size:var(--fs);color:#aaa;font-style:italic;padding:6px 0}
+#side{position:fixed;left:0;right:0;bottom:0;height:68vh;height:68dvh;background:#111;border-top:3px solid var(--y);border-radius:18px 18px 0 0;transform:translateY(105%);transition:transform .25s;z-index:20;display:flex;flex-direction:column;padding:8px;padding-bottom:max(8px,env(safe-area-inset-bottom))}
+#side.open{transform:none}
+#side[data-tab=clock] #drawCard,#side[data-tab=draw] #clockCard{display:none}
+.tabs{display:flex;gap:6px;margin-bottom:6px}
+.tabs button{flex:1}
+.tabs button.act{background:var(--y);color:#000;font-weight:700}
+.tabs button.act::after{content:" ●"}
+.card{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;gap:6px}
+.card h2{margin:0;font-size:1rem;color:#ddd}
+#clk{flex:1;min-height:0;width:100%}
+#clkLabel{font-size:1.8rem;font-weight:700;color:var(--y)}
+#clkEmpty{color:#bbb;text-align:center;padding:16px}
+.tools{display:flex;flex-wrap:wrap;gap:6px;width:100%}
+.col{display:flex;align-items:center;gap:6px}
+.col i{display:inline-block;width:18px;height:18px;border-radius:50%;border:2px solid #fff}
+.col.sel{background:#fff;color:#000;border-width:4px;font-weight:700}
+.col.sel::after{content:"✓"}
+.cvwrap{position:relative;flex:1;width:100%;min-height:140px;background:#fff;border:3px solid #fff;border-radius:10px}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;border-radius:8px}
+@media(min-width:900px){
+#feedPane{flex:0 0 55%}
+#side{position:static;transform:none;height:auto;flex:1;border-top:0;border-left:3px solid #444;border-radius:0;transition:none}
+#side .tabs,.mobOnly{display:none!important}
+#side .card{display:flex!important}
+#clockCard{flex:0 0 46%}
+#drawCard{flex:1}
+}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:50;display:flex;align-items:center;justify-content:center;padding:12px}
+.modal[hidden]{display:none}
+#lockM{z-index:100;background:#000}
+.mbox{background:#111;border:3px solid #fff;border-radius:16px;max-width:640px;width:100%;max-height:90vh;max-height:90dvh;overflow:auto;padding:16px;line-height:1.7}
+.mbox h2{margin:0 0 8px}
+.mbox h3{margin:14px 0 4px;border-bottom:2px solid #444}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+.msg{min-height:1.4em;color:var(--y);font-weight:700}
+.logrow{border-bottom:1px solid #444;padding:8px 0;font-size:1.05rem}
+.ts{font-size:.8rem;color:#bbb}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+<div class="ttl"><h1>イツモジ</h1><p class="sub">あなたのそばに、いつもよりそう文字ツール</p></div>
+<button id="btnHelp" type="button" aria-label="使い方ガイドを開く">？</button>
+<button id="btnSet" type="button" aria-label="設定を開く">⚙️</button>
+</header>
+<main>
+<section id="feedPane">
+<div class="bar">
+<span id="st" class="pill" role="status">⏸ 停止中</span>
+<button id="btnRec" type="button">🎤 聞き始める</button>
+<button id="btnLog" type="button">📜 ログ</button>
+<button id="btnSide" type="button" class="mobOnly">✏️ 時計・手描き</button>
+</div>
+<div id="pauseBadge" hidden>⏸ 一時停止中（指やマウスを離すと最新へ戻ります）</div>
+<div id="feed" tabindex="0" aria-label="字幕">
+<p id="hint">「🎤 聞き始める」を押すと、話しことばが字幕になります。<br>🕐 がついた時間ことばをタップすると、時計で見られます。</p>
+</div>
+</section>
+<aside id="side" data-tab="clock" aria-label="視覚支援">
+<div class="tabs">
+<button type="button" data-t="clock" class="act">🕐 時計</button>
+<button type="button" data-t="draw">✏️ 手描き</button>
+<button type="button" id="sideClose">✕ 閉じる</button>
+</div>
+<div id="clockCard" class="card">
+<h2>視覚カード（短い針＝時／長い針＝分）</h2>
+<div id="clkEmpty">字幕の 🕐 時間ことばをタップすると、ここに時計が出ます</div>
+<svg id="clk" viewBox="0 0 200 200" role="img" aria-label="アナログ時計" hidden></svg>
+<div id="clkLabel"></div>
+</div>
+<div id="drawCard" class="card">
+<div class="tools">
+<button type="button" class="col sel" data-c="#111111"><i style="background:#111111"></i>黒</button>
+<button type="button" class="col" data-c="#d55e00"><i style="background:#d55e00"></i>赤</button>
+<button type="button" class="col" data-c="#0072b2"><i style="background:#0072b2"></i>青</button>
+<button type="button" class="col" data-c="#e69f00"><i style="background:#e69f00"></i>橙</button>
+<button type="button" id="cvUndo">↩ 1つ戻す</button>
+<button type="button" id="cvClear">🗑 全消去</button>
+</div>
+<div class="cvwrap"><canvas id="cv" aria-label="手描きキャンバス"></canvas></div>
+</div>
+</aside>
+</main>
+</div>
+
+<div id="helpM" class="modal" role="dialog" aria-modal="true" aria-labelledby="helpT" hidden>
+<div class="mbox">
+<h2 id="helpT">使い方ガイド</h2>
+<ol>
+<li>机の上に置いて「🎤 聞き始める」を押します。マイクの使用を「許可」してください。</li>
+<li>話しことばが、大きな字幕になって下に流れます。</li>
+<li>字幕にさわっている間は、流れが止まります。</li>
+<li>🕐 がついた時間のことば（例：3時30分）をタップすると、時計で時刻が見られます。</li>
+<li>「✏️ 手描き」では、指やペンで絵や図をかいて見せられます。</li>
+<li>「📜 ログ」で、過去の字幕を見たり、コピーしたり、消したりできます。</li>
+<li>⚙️ で、文字の大きさやパスコード（見られないようにする番号）を決められます。</li>
+</ol>
+<p>※ 音声認識はインターネットにつながっていると安定します。Chrome / Edge / Safari をおすすめします。</p>
+<button type="button" data-close="helpM">✕ 閉じる</button>
+</div>
+</div>
+
+<div id="setM" class="modal" role="dialog" aria-modal="true" aria-labelledby="setT" hidden>
+<div class="mbox">
+<h2 id="setT">⚙️ 設定</h2>
+<h3>文字の大きさ</h3>
+<div class="row"><button type="button" id="fsMinus">Ａ－ 小さく</button><button type="button" id="fsPlus">Ａ＋ 大きく</button></div>
+<h3>パスコード</h3>
+<div id="passSt" class="msg"></div>
+<label>今のパスコード（変更・解除のとき）<input id="passCur" type="password" inputmode="numeric" autocomplete="off" maxlength="8"></label>
+<label>新しいパスコード（数字4〜8けた）<input id="passNew" type="password" inputmode="numeric" autocomplete="off" maxlength="8"></label>
+<div class="row"><button type="button" id="passSave">🔒 設定・変更してONにする</button><button type="button" id="passOff">🔓 OFFにする</button></div>
+<div id="passMsg" class="msg"></div>
+<h3>ログ</h3>
+<div class="row"><button type="button" id="setDel">🗑 ログをすべて削除</button></div>
+<div id="delMsg" class="msg"></div>
+<button type="button" data-close="setM">✕ 閉じる</button>
+</div>
+</div>
+
+<div id="logM" class="modal" role="dialog" aria-modal="true" aria-labelledby="logT" hidden>
+<div class="mbox">
+<h2 id="logT">📜 会話ログ（新しい順）</h2>
+<div class="row"><button type="button" id="logCopyAll">📋 全部コピー</button><button type="button" id="logDel">🗑 すべて削除</button><button type="button" data-close="logM">✕ 閉じる</button></div>
+<div id="logList"></div>
+</div>
+</div>
+
+<div id="lockM" class="modal" role="dialog" aria-modal="true" aria-labelledby="lockT" hidden>
+<div class="mbox">
+<h2 id="lockT">🔒 パスコードを入力</h2>
+<input id="lockIn" type="password" inputmode="numeric" autocomplete="off" maxlength="8" aria-label="パスコード">
+<div id="lockMsg" class="msg"></div>
+<button type="button" id="lockGo">🔓 ひらく</button>
+</div>
+</div>
+
+<footer style="text-align: center; font-size: 0.75rem; color: #888; margin-top: 3rem; padding: 1rem 0.5rem; line-height: 1.5;">
+  <p style="margin-bottom: 0.5rem;">【ご利用について】</p>
+  <p style="margin-bottom: 0.5rem;">本アプリの利用に伴うトラブルやデータ損失等について、開発者は一切の責任を負いかねます。</p>
+  <p style="margin-bottom: 0.5rem;">ご意見・不具合のご報告は X（<a href="https://x.com/lblt_labo" target="_blank" rel="noopener" style="color: #666; text-decoration: underline;">@lblt_labo</a>）までお願いいたします。</p>
+  <p style="margin-top: 0.5rem;"><a href="https://ofuse.me/lbltlabo/letter" target="_blank" rel="noopener noreferrer" style="color: #666; text-decoration: underline;">☕️ 開発者を応援する / メッセージを送る</a></p>
+</footer>
+
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+try{init()}catch(e){console.error(e)}
+function init(){
+const $=id=>document.getElementById(id);
+const on=(id,ev,fn)=>{const e=$(id);if(e)e.addEventListener(ev,fn)};
+const msg=(id,t)=>{const e=$(id);if(e)e.textContent=t};
+const show=id=>{const e=$(id);if(e)e.hidden=false};
+const hide=id=>{const e=$(id);if(e)e.hidden=true};
+const pad=n=>String(n).padStart(2,'0');
+const hm=t=>{const d=new Date(t);return pad(d.getHours())+':'+pad(d.getMinutes())};
+const fmt=t=>{const d=new Date(t);return d.getFullYear()+'/'+pad(d.getMonth()+1)+'/'+pad(d.getDate())+' '+hm(t)};
+const isMob=()=>{try{return !window.matchMedia('(min-width:900px)').matches}catch(e){return true}};
+
+/* ---- 保存（localStorage失敗時はメモリ退避） ---- */
+const mem={};
+const lsGet=k=>{try{const v=localStorage.getItem(k);return v===null?(mem[k]===undefined?null:mem[k]):v}catch(e){return mem[k]===undefined?null:mem[k]}};
+const lsSet=(k,v)=>{mem[k]=v;try{localStorage.setItem(k,v)}catch(e){}};
+let cfg={pass:'',fs:1.6};
+try{Object.assign(cfg,JSON.parse(lsGet('lb_cfg')||'{}'))}catch(e){}
+const saveCfg=()=>lsSet('lb_cfg',JSON.stringify(cfg));
+const applyFs=()=>{try{document.documentElement.style.setProperty('--fs',cfg.fs+'rem')}catch(e){}};
+applyFs();
+
+let logs=[],dbp=null;
+const idb=()=>dbp||(dbp=new Promise((res,rej)=>{try{const r=indexedDB.open('lb_db',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}}));
+async function loadLogs(){
+try{const db=await idb();logs=await new Promise((res,rej)=>{const q=db.transaction('kv').objectStore('kv').get('logs');q.onsuccess=()=>res(q.result||[]);q.onerror=()=>rej(q.error)})}
+catch(e){try{logs=JSON.parse(lsGet('lb_logs')||'[]')}catch(e2){logs=[]}}
+if(!Array.isArray(logs))logs=[];
+}
+async function saveLogs(){
+if(logs.length>2000)logs=logs.slice(-2000);
+try{const db=await idb();await new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(logs,'logs');tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
+catch(e){try{lsSet('lb_logs',JSON.stringify(logs))}catch(e2){}}
+}
+
+/* ---- モーダル・設定 ---- */
+document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>hide(b.dataset.close)));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')['helpM','setM','logM'].forEach(hide)});
+on('btnHelp','click',()=>show('helpM'));
+on('btnSet','click',()=>{refreshPass();msg('passMsg','');msg('delMsg','');show('setM')});
+on('fsMinus','click',()=>{cfg.fs=Math.max(1,+(cfg.fs-.2).toFixed(1));saveCfg();applyFs()});
+on('fsPlus','click',()=>{cfg.fs=Math.min(3.4,+(cfg.fs+.2).toFixed(1));saveCfg();applyFs()});
+
+/* ---- パスコード ---- */
+async function hash(s){try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('lb:'+s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('')}catch(e){return 'p:'+s}}
+let unlocked=!cfg.pass;
+const refreshPass=()=>msg('passSt',cfg.pass?'🔒 パスコード：ON':'🔓 パスコード：OFF');
+const clearPassIn=()=>{const a=$('passCur'),b=$('passNew');if(a)a.value='';if(b)b.value=''};
+async function tryUnlock(){
+const i=$('lockIn');if(!i)return;
+if((await hash(i.value))===cfg.pass){unlocked=true;i.value='';msg('lockMsg','');hide('lockM')}
+else msg('lockMsg','❌ 番号がちがいます')
+}
+on('lockGo','click',tryUnlock);
+on('lockIn','keydown',e=>{if(e.key==='Enter')tryUnlock()});
+on('passSave','click',async()=>{
+const cur=($('passCur')||{}).value||'',nw=($('passNew')||{}).value||'';
+if(cfg.pass&&(await hash(cur))!==cfg.pass){msg('passMsg','❌ 今のパスコードがちがいます');return}
+if(!/^\d{4,8}$/.test(nw)){msg('passMsg','❌ 数字4〜8けたで入力してください');return}
+cfg.pass=await hash(nw);saveCfg();unlocked=true;clearPassIn();refreshPass();msg('passMsg','✅ 設定しました');
+});
+on('passOff','click',async()=>{
+if(!cfg.pass){msg('passMsg','いまはOFFです');return}
+if((await hash(($('passCur')||{}).value||''))!==cfg.pass){msg('passMsg','❌ 今のパスコードがちがいます');return}
+cfg.pass='';saveCfg();clearPassIn();refreshPass();msg('passMsg','✅ OFFにしました');
+});
+if(cfg.pass)show('lockM');
+refreshPass();
+
+/* ---- 字幕フィード ---- */
+const feed=$('feed');
+let paused=false,resumeT=0,interimEl=null;
+const scrollEnd=()=>{if(feed&&!paused)feed.scrollTop=feed.scrollHeight};
+function setPause(p){paused=p;const b=$('pauseBadge');if(b)b.hidden=!p;if(!p)scrollEnd()}
+if(feed){
+feed.addEventListener('pointerenter',e=>{if(e.pointerType==='mouse'){clearTimeout(resumeT);setPause(true)}});
+feed.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse'){clearTimeout(resumeT);resumeT=setTimeout(()=>setPause(false),1200)}});
+feed.addEventListener('touchstart',()=>{clearTimeout(resumeT);setPause(true)},{passive:true});
+const tEnd=()=>{clearTimeout(resumeT);resumeT=setTimeout(()=>setPause(false),4000)};
+feed.addEventListener('touchend',tEnd);feed.addEventListener('touchcancel',tEnd);
+}
+
+/* ---- 時間表現の検出・文節分割 ---- */
+const toHalf=s=>s.replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248));
+const TRE=/(午前|午後)?([0-9０-９]{1,2})(?:時(?:(半)|([0-9０-９]{1,2})分)?|[:：]([0-9０-９]{2}))/g;
+function findTimes(t){
+const r=[];TRE.lastIndex=0;let m;
+while((m=TRE.exec(t))){
+const h=+toHalf(m[2]);const mi=m[3]?30:(m[4]?+toHalf(m[4]):(m[5]?+toHalf(m[5]):0));
+if(h<=24&&mi<60)r.push({i:m.index,s:m[0],h:h,m:mi,ap:m[1]||''});
+}
+return r;
+}
+const seg=(()=>{try{return Intl.Segmenter?new Intl.Segmenter('ja',{granularity:'word'}):null}catch(e){return null}})();
+function split(t){
+let o=[];
+try{if(seg){for(const g of seg.segment(t)){const s=g.segment;if(!s.trim())continue;if(o.length&&(g.isWordLike===false||/^[ぁ-ん]$/.test(s)))o[o.length-1]+=s;else o.push(s)}if(o.length)return o}}catch(e){o=[]}
+return (t.match(/[^、。，．,.!?！？\s]+[、。，．,.!?！？]?|[、。，．,.!?！？]/g)||[t]).filter(x=>x.trim());
+}
+function tokenize(t){
+const out=[];let p=0;
+for(const x of findTimes(t)){
+if(x.i>p)split(t.slice(p,x.i)).forEach(s=>out.push({s:s}));
+out.push({s:x.s,time:x});p=x.i+x.s.length;
+}
+if(p<t.length)split(t.slice(p)).forEach(s=>out.push({s:s}));
+return out;
+}
+function renderEntry(e){
+if(!feed)return;
+const h=$('hint');if(h)h.remove();
+const d=document.createElement('div');d.className='entry';
+const st=document.createElement('div');st.className='stamp';st.textContent=hm(e.t);
+const c=document.createElement('div');c.className='chips';
+tokenize(e.x).forEach(k=>{
+const b=document.createElement('button');b.type='button';b.className='chip'+(k.time?' time':'');
+b.textContent=(k.time?'🕐 ':'')+k.s;b.setAttribute('aria-pressed','false');
+b.addEventListener('click',()=>{const s=b.classList.toggle('sel');b.setAttribute('aria-pressed',String(s));if(k.time)showClock(k.time)});
+c.appendChild(b);
+});
+d.appendChild(st);d.appendChild(c);
+if(interimEl&&interimEl.parentNode===feed)feed.insertBefore(d,interimEl);else feed.appendChild(d);
+scrollEnd();
+}
+function setInterim(t){
+if(!feed)return;
+if(!interimEl){interimEl=document.createElement('div');interimEl.className='interim'}
+if(t){const h=$('hint');if(h)h.remove();interimEl.textContent='…'+t;if(interimEl.parentNode!==feed)feed.appendChild(interimEl)}
+else if(interimEl.parentNode)interimEl.remove();
+scrollEnd();
+}
+function addFinal(text){
+text=(text||'').trim();if(!text)return;
+const e={t:Date.now(),x:text};logs.push(e);
+try{renderEntry(e)}catch(err){console.error(err)}
+saveLogs();
+}
+
+/* ---- ボトムシート / タブ ---- */
+const side=$('side');
+function setTab(t){
+if(!side)return;side.dataset.tab=t;
+side.querySelectorAll('.tabs button[data-t]').forEach(b=>b.classList.toggle('act',b.dataset.t===t));
+if(t==='draw')setTimeout(sizeCv,60);
+}
+function openSide(t){if(!side)return;setTab(t);side.classList.add('open')}
+side&&side.querySelectorAll('.tabs button[data-t]').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.t)));
+on('sideClose','click',()=>side&&side.classList.remove('open'));
+on('btnSide','click',()=>openSide((side&&side.dataset.tab)||'clock'));
+
+/* ---- アナログ時計 ---- */
+const NS='http://www.w3.org/2000/svg';
+function mk(n,a,p){const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e}
+let hH=null,hM=null;
+function buildClock(){
+const s=$('clk');if(!s)return;
+mk('circle',{cx:100,cy:100,r:96,fill:'#fff',stroke:'#000','stroke-width':5},s);
+for(let i=0;i<60;i++){const a=i*6*Math.PI/180,r1=90,r2=r1-(i%5?4:10);
+mk('line',{x1:100+r1*Math.sin(a),y1:100-r1*Math.cos(a),x2:100+r2*Math.sin(a),y2:100-r2*Math.cos(a),stroke:'#000','stroke-width':i%5?1:3},s)}
+for(let n=1;n<=12;n++){const a=n*30*Math.PI/180;
+const t=mk('text',{x:100+68*Math.sin(a),y:100-68*Math.cos(a)+8,'text-anchor':'middle','font-size':22,'font-weight':700,fill:'#000'},s);t.textContent=n}
+hH=mk('line',{x1:100,y1:100,x2:100,y2:54,stroke:'#000','stroke-width':10,'stroke-linecap':'round'},s);
+hM=mk('line',{x1:100,y1:100,x2:100,y2:26,stroke:'#0072b2','stroke-width':4,'stroke-linecap':'round'},s);
+mk('circle',{cx:100,cy:100,r:6,fill:'#000'},s);
+}
+function showClock(x){
+if(!hH||!hM)return;
+hH.setAttribute('transform','rotate('+((x.h%12)*30+x.m*.5)+' 100 100)');
+hM.setAttribute('transform','rotate('+(x.m*6)+' 100 100)');
+const ap=x.ap||((x.h>=13&&x.h<24)?'午後':'');
+msg('clkLabel',(ap?ap+' ':'')+(x.h%12||12)+'時'+(x.m?x.m+'分':'ちょうど'));
+const s=$('clk');if(s)s.hidden=false;hide('clkEmpty');
+if(isMob())openSide('clock');else setTab('clock');
+}
+buildClock();
+
+/* ---- 手描きキャンバス ---- */
+const cv=$('cv'),ctx=(cv&&cv.getContext)?cv.getContext('2d'):null;
+let strokes=[],cur=null,color='#111111',backup=null;
+function redraw(){
+if(!ctx)return;
+const w=cv.clientWidth,h=cv.clientHeight;
+ctx.clearRect(0,0,w,h);ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=4;
+for(const s of strokes){
+ctx.strokeStyle=s.c;ctx.beginPath();
+s.p.forEach((p,i)=>{if(i)ctx.lineTo(p[0]*w,p[1]*h);else ctx.moveTo(p[0]*w,p[1]*h)});
+if(s.p.length===1)ctx.lineTo(s.p[0][0]*w+.1,s.p[0][1]*h);
+ctx.stroke();
+}
+}
+function sizeCv(){
+if(!cv||!ctx||!cv.parentElement)return;
+const r=cv.parentElement.getBoundingClientRect();if(r.width<10||r.height<10)return;
+const d=window.devicePixelRatio||1;cv.width=Math.round(r.width*d);cv.height=Math.round(r.height*d);
+ctx.setTransform(d,0,0,d,0,0);redraw();
+}
+if(cv&&ctx){
+const pos=e=>{const r=cv.getBoundingClientRect();return [(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height]};
+cv.addEventListener('pointerdown',e=>{e.preventDefault();try{cv.setPointerCapture(e.pointerId)}catch(x){}cur={c:color,p:[pos(e)]};strokes.push(cur);redraw()});
+cv.addEventListener('pointermove',e=>{if(!cur)return;cur.p.push(pos(e));redraw()});
+const end=()=>{cur=null};
+cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
+}
+document.querySelectorAll('.col').forEach(b=>b.addEventListener('click',()=>{
+color=b.dataset.c;document.querySelectorAll('.col').forEach(x=>x.classList.toggle('sel',x===b));
+}));
+on('cvUndo','click',()=>{if(!strokes.length&&backup){strokes=backup;backup=null}else strokes.pop();redraw()});
+on('cvClear','click',()=>{if(strokes.length){backup=strokes;strokes=[]}redraw()});
+window.addEventListener('resize',()=>setTimeout(sizeCv,80));
+setTimeout(sizeCv,100);
+
+/* ---- 常時音声認識 ---- */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let rec=null,want=false,fails=0,rt=0,running=false,wl=null;
+function status(k){
+const s=$('st');if(!s)return;
+const m={on:['🎤 聞いています','pill on'],off:['⏸ 停止中','pill'],re:['🔄 つなぎ直し中…','pill warn'],ng:['⚠ このブラウザは音声認識に未対応です','pill warn'],deny:['🚫 マイクが許可されていません','pill warn']}[k]||['','pill'];
+s.textContent=m[0];s.className=m[1];
+}
+function setBtn(){const b=$('btnRec');if(b)b.textContent=want?'⏹ とめる':'🎤 聞き始める'}
+async function wake(){try{if('wakeLock' in navigator&&document.visibilityState==='visible')wl=await navigator.wakeLock.request('screen')}catch(e){}}
+function retry(base){status('re');fails++;rt=setTimeout(startRec,Math.min(base*fails,4000))}
+function startRec(){
+if(!SR){status('ng');return}
+clearTimeout(rt);
+try{
+if(rec){rec.onend=null;rec.onerror=null;rec.onresult=null;try{rec.abort()}catch(e){}}
+rec=new SR();rec.lang='ja-JP';rec.continuous=true;rec.interimResults=true;rec.maxAlternatives=1;
+rec.onstart=()=>{running=true;status('on')};
+rec.onresult=ev=>{
+fails=0;let it='';
+for(let i=ev.resultIndex;i<ev.results.length;i++){const r=ev.results[i];if(r.isFinal)addFinal(r[0].transcript);else it+=r[0].transcript}
+setInterim(it);
+};
+rec.onerror=ev=>{if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){want=false;status('deny');setBtn()}};
+rec.onend=()=>{running=false;setInterim('');if(!want){status('off');return}retry(300)};
+rec.start();
+}catch(e){running=false;if(want)retry(500)}
+}
+on('btnRec','click',()=>{
+if(!SR){status('ng');return}
+want=!want;setBtn();
+if(want){fails=0;startRec();wake()}
+else{clearTimeout(rt);try{rec&&rec.stop()}catch(e){}status('off')}
+});
+window.addEventListener('online',()=>{if(want&&!running){fails=0;startRec()}});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&want){wake();if(!running){fails=0;startRec()}}});
+status(SR?'off':'ng');
+
+/* ---- ログ画面 ---- */
+async function copyText(t,btn){
+try{await navigator.clipboard.writeText(t)}
+catch(e){try{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove()}catch(e2){}}
+if(btn){const o=btn.textContent;btn.textContent='✅ コピーしました';setTimeout(()=>{btn.textContent=o},1500)}
+}
+function renderLog(){
+const l=$('logList');if(!l)return;l.textContent='';
+if(!logs.length){l.textContent='まだ記録はありません';return}
+for(const e of logs.slice().reverse()){
+const r=document.createElement('div');r.className='logrow';
+const a=document.createElement('div');a.className='ts';a.textContent=fmt(e.t);
+const b=document.createElement('div');b.textContent=e.x;
+const c=document.createElement('button');c.type='button';c.textContent='📋 コピー';c.addEventListener('click',()=>copyText(e.x,c));
+r.appendChild(a);r.appendChild(b);r.appendChild(c);l.appendChild(r);
+}
+}
+function delAll(){
+let ok=true;try{ok=confirm('会話ログをすべて削除します。よろしいですか？')}catch(e){}
+if(!ok)return;
+logs=[];saveLogs();renderLog();
+if(feed)feed.querySelectorAll('.entry').forEach(x=>x.remove());
+msg('delMsg','✅ 削除しました');
+}
+on('btnLog','click',()=>{if(cfg.pass&&!unlocked){show('lockM');return}renderLog();show('logM')});
+on('logCopyAll','click',e=>copyText(logs.map(x=>'['+fmt(x.t)+'] '+x.x).join('\n'),e.currentTarget));
+on('logDel','click',delAll);
+on('setDel','click',delAll);
+
+loadLogs();
+
+/* ---- Service Worker（失敗しても本体に影響なし） ---- */
+try{if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').catch(()=>{})}}catch(e){}
+}
+});
+</script>
+</body>
+</html>
